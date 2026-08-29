@@ -1,53 +1,35 @@
 import re
 from typing import Dict, Any, List
-from paddleocr import PaddleOCR
+import easyocr
 
-# Initialize PaddleOCR engine globally to avoid re-instantiating on every function call
-# use_angle_cls=True handles rotated/upside-down document scans
-ocr_model = PaddleOCR(use_angle_cls=True, lang='en')
+# Initialize EasyOCR reader once globally for English
+reader = easyocr.Reader(['en'], gpu=False)
 
 
 def _validate_pan(text: str) -> bool:
-    """Checks for standard Indian PAN format: 5 uppercase letters, 4 digits, 1 uppercase letter."""
     pattern = r"[A-Z]{5}[0-9]{4}[A-Z]"
     return bool(re.search(pattern, text))
 
 
 def _validate_passport_mrz(lines: List[str]) -> bool:
-    """
-    Validates Type-3 Passport MRZ structure:
-    2 lines, each exactly 44 characters containing alphanumeric characters and '<'.
-    """
     mrz_lines = []
     for line in lines:
         cleaned = line.replace(" ", "").upper()
         if len(cleaned) == 44 and "<" in cleaned:
             mrz_lines.append(cleaned)
-    
     return len(mrz_lines) >= 2
 
 
 def _validate_aadhaar_format(text: str) -> bool:
-    """
-    Checks for 12-digit structural format (spaced as 4-4-4 or contiguous 12 digits).
-    Does not validate check-digit algorithms (Verhoeff) to avoid false negatives on raw OCR outputs.
-    """
-    # Pattern matches 12 digits separated by spaces/hyphens or standard 12 contiguous digits
+    # Validate structural 12-digit pattern (spaced 4-4-4 or 12 contiguous digits)
     pattern = r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b"
     return bool(re.search(pattern, text))
 
 
 def extract_and_validate(image_path: str) -> Dict[str, Any]:
     """
-    Extracts text from an image using PaddleOCR and validates the document's format integrity.
-    
-    Interface Contract Output:
-    {
-        "raw_text": list[str],
-        "doc_type_detected": str,
-        "is_valid_format": bool,
-        "error_flags": list[str]
-    }
+    Extracts text using EasyOCR and validates document format integrity.
+    Matches Member 1 API Interface Contract.
     """
     raw_text: List[str] = []
     error_flags: List[str] = []
@@ -55,12 +37,9 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
     is_valid_format = False
 
     try:
-        # Perform OCR inference
-        result = ocr_model.ocr(image_path, cls=True)
-        
-        if result and result[0]:
-            # Flatten extracted text strings
-            raw_text = [line[1][0].strip() for line in result[0] if line[1][0].strip()]
+        # Perform EasyOCR extraction
+        results = reader.readtext(image_path, detail=0)
+        raw_text = [line.strip() for line in results if line.strip()]
     except Exception as e:
         return {
             "raw_text": [],
@@ -111,7 +90,6 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    # Internal module unit test
     import sys
     test_img = sys.argv[1] if len(sys.argv) > 1 else "data/test_samples/sample_pan.jpg"
     print(f"--- Running Local Test on: {test_img} ---")
@@ -119,4 +97,3 @@ if __name__ == "__main__":
     print("Detected Document Type:", out["doc_type_detected"])
     print("Format Validated:", out["is_valid_format"])
     print("Error Flags:", out["error_flags"])
-    print("Extracted Lines Count:", len(out["raw_text"]))
