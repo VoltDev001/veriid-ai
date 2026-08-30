@@ -1,13 +1,14 @@
-import streamlit as st
 import os
 import sys
 import json
 from datetime import datetime
+import streamlit as st
 
+# Add src directory to path
 sys.path.append(os.path.abspath("src"))
 
 from ocr_engine import extract_and_validate
-from tampering_engine import generate_ela
+from ela_engine import analyze_image_tampering
 from face_engine import match_faces
 from risk_engine import calculate_risk_score
 
@@ -37,32 +38,36 @@ if st.button("Execute Forensic Screening", use_container_width=True):
             f.write(live_file.getbuffer())
 
         # Vector Execution
-        ocr_res = extract_and_validate(doc_path)
-        ela_img, anomaly_score, is_tampered = generate_ela(doc_path)
-        tamper_res = {"anomaly_score": anomaly_score, "is_tampered": is_tampered}
-        face_res = match_faces(doc_path, live_path)
+        with st.spinner("Analyzing document and biometric signatures..."):
+            ocr_res = extract_and_validate(doc_path)
+            tamper_res = analyze_image_tampering(doc_path)
+            face_res = match_faces(doc_path, live_path)
 
-        # Risk Orchestration
-        risk_summary = calculate_risk_score(ocr_res, tamper_res, face_res)
+            # Risk Orchestration
+            risk_summary = calculate_risk_score(ocr_res, tamper_res, face_res)
 
         st.divider()
         st.subheader(f"Screening Verdict: {risk_summary['verdict']}")
         st.metric("Total Risk Score", f"{risk_summary['risk_score']}%")
 
         m_col1, m_col2, m_col3 = st.columns(3)
-        m_col1.metric("Doc Integrity", "PASSED" if ocr_res["is_valid_format"] else "FAILED")
-        m_col2.metric("ELA Forensics", f"{anomaly_score:.1f}/100", delta="Tampered" if is_tampered else "Clean", delta_color="inverse")
-        m_col3.metric("Biometric Match", f"{face_res['similarity_score']}%", "Match" if face_res["is_same_person"] else "Mismatch")
+        m_col1.metric("Doc Integrity", "PASSED" if ocr_res.get("is_valid_format", True) else "FAILED")
+        m_col2.metric("ELA Forensics", f"{tamper_res.get('anomaly_score', 0.0):.1f}/100", 
+                      delta="Tampered" if tamper_res.get("tampering_detected") else "Clean", 
+                      delta_color="inverse")
+        m_col3.metric("Biometric Match", f"{face_res.get('similarity_score', 0.0):.1f}%", 
+                      "Match" if face_res.get("is_same_person") else "Mismatch")
 
         with st.expander("🔍 Detailed Forensic Observations", expanded=True):
-            for reason in risk_summary["flagged_reasons"]:
+            for reason in risk_summary.get("flagged_reasons", []):
                 st.markdown(f"- {reason}")
 
         v_col1, v_col2 = st.columns(2)
         with v_col1:
             st.image(doc_path, caption="Original Document", use_container_width=True)
         with v_col2:
-            st.image(ela_img, caption="Error Level Analysis (ELA) Heatmap", use_container_width=True)
+            if tamper_res.get("ela_image") is not None:
+                st.image(tamper_res["ela_image"], caption="Error Level Analysis (ELA) Heatmap", use_container_width=True)
 
         # Audit Export
         report_data = {
@@ -70,9 +75,13 @@ if st.button("Execute Forensic Screening", use_container_width=True):
             "verdict": risk_summary["verdict"],
             "risk_score": risk_summary["risk_score"],
             "ocr_analysis": ocr_res,
-            "tampering_analysis": tamper_res,
+            "tampering_analysis": {
+                "anomaly_score": tamper_res.get("anomaly_score", 0.0),
+                "tampering_detected": tamper_res.get("tampering_detected", False),
+                "flagged_regions": tamper_res.get("flagged_regions", [])
+            },
             "biometric_analysis": face_res,
-            "flags": risk_summary["flagged_reasons"]
+            "flags": risk_summary.get("flagged_reasons", [])
         }
 
         st.download_button(
