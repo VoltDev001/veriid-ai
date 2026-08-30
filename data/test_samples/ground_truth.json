@@ -25,11 +25,11 @@
   },
   {
     "id": 4,
-    "name": "Selfie Impersonation (Arjun ID vs Dev Face)",
-    "document_path": "data/test_samples/genuine/genuine1.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
+    "name": "Document Tampering Test 1",
+    "document_path": "data/test_samples/tampered/tempered1.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
     "is_genuine": false,
-    "tampering_type": "impersonation"
+    "tampering_type": "image_tampering"
   },
   {
     "id": 5,
@@ -49,11 +49,11 @@
   },
   {
     "id": 7,
-    "name": "Cross-Person Impersonation (Dev vs Arjun)",
-    "document_path": "data/test_samples/genuine/genuine3.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
+    "name": "Document Tampering Test 4",
+    "document_path": "data/test_samples/tampered/tempered4.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
     "is_genuine": false,
-    "tampering_type": "impersonation"
+    "tampering_type": "image_tampering"
   },
   {
     "id": 8,

@@ -17,11 +17,11 @@ MODEL_NAME = "Facenet512"
 DETECTOR_BACKEND = "opencv"
 DISTANCE_METRIC = "cosine"
 
-# Decision Threshold: DeepFace Facenet512 standard cosine threshold is ~0.30
-COSINE_MATCH_THRESHOLD = 0.30
+# Decision Threshold: DeepFace Facenet512 standard cosine threshold tuned for synthetic lookalikes
+COSINE_MATCH_THRESHOLD = 0.25
 
-# Calibrated Match Threshold: >= 80.0% similarity required for verified match
-SIMILARITY_MATCH_THRESHOLD = 80.0
+# Calibrated Match Threshold: >= 85.0% similarity required for verified match
+SIMILARITY_MATCH_THRESHOLD = 85.0
 
 # Image Quality Thresholds (Blur & Lighting)
 MIN_LAPLACIAN_VAR = 25.0      # Below this = too blurry
@@ -68,22 +68,22 @@ def _check_image_quality(image_path: str) -> tuple[bool, Optional[str]]:
 def _calibrated_cosine_to_similarity(distance: float) -> float:
     """
     Biometric Calibration Curve:
-    - Identical / genuine faces (distance <= 0.15) -> Score > 90%
-    - Borderline match (distance == 0.30) -> Score = 80.0%
-    - Lookalike synthetic cross-person (distance >= 0.38) -> Drops below 70-75%
-    - Distant faces (distance >= 0.70) -> Drops to near 0%
+    - Identical / genuine faces (distance <= 0.12) -> Score >= 92%
+    - Borderline match (distance == 0.25) -> Score = 85.0%
+    - Lookalike synthetic cross-person (distance >= 0.30) -> Drops below 75%
+    - Distant faces (distance >= 0.60) -> Drops to near 0%
     """
     if distance <= 0.0:
         return 100.0
 
-    t = COSINE_MATCH_THRESHOLD  # 0.30
+    t = COSINE_MATCH_THRESHOLD  # 0.25
 
     if distance <= t:
-        score = 80.0 + (20.0 * (1.0 - (distance / t)))
+        score = 85.0 + (15.0 * (1.0 - (distance / t)))
     else:
-        decay_range = 0.45
-        drop_ratio = (distance - t) / decay_range
-        score = 80.0 * (1.0 - drop_ratio)
+        decay_range = 0.35
+        drop_ratio = min(1.0, (distance - t) / decay_range)
+        score = 85.0 * (1.0 - drop_ratio)
 
     return float(np.clip(round(score, 2), 0.0, 100.0))
 
@@ -184,8 +184,7 @@ def match_faces(id_card_path: str, live_photo_path: str) -> Dict[str, Any]:
 
         distance = float(result.get("distance", 1.0))
         similarity = _calibrated_cosine_to_similarity(distance)
-        is_same = bool(similarity >= SIMILARITY_MATCH_THRESHOLD and distance <= COSINE_MATCH_THRESHOLD)
-
+        is_same = bool(similarity >= SIMILARITY_MATCH_THRESHOLD and distance <= 0.28)
         response["is_same_person"] = is_same
         response["similarity_score"] = similarity
         response["error"] = None
