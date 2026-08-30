@@ -49,10 +49,34 @@
   },
   {
     "id": 7,
-    "name": "Cross-Person Impersonation",
-    "document_path": "data/test_samples/genuine/genuine1.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
+    "name": "Cross-Person Impersonation (Dev vs Arjun)",
+    "document_path": "data/test_samples/genuine/genuine3.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
     "is_genuine": false,
     "tampering_type": "impersonation"
+  },
+  {
+    "id": 8,
+    "name": "Cross-Person Impersonation (Arjun ID vs Raj Face)",
+    "document_path": "data/test_samples/impersonation/impersonation1.jpeg",
+    "live_photo_path": "data/test_samples/impersonation/impersonation2.jpeg",
+    "is_genuine": false,
+    "tampering_type": "impersonation"
+  },
+  {
+    "id": 9,
+    "name": "Cross-Person Impersonation (Raj ID vs Dev Face)",
+    "document_path": "data/test_samples/impersonation/impersonation2.jpeg",
+    "live_photo_path": "data/test_samples/impersonation/impersonation3.jpeg",
+    "is_genuine": false,
+    "tampering_type": "impersonation"
+  },
+  {
+    "id": 10,
+    "name": "Genuine Card 4 (Dev Mehta Re-verification)",
+    "document_path": "data/test_samples/impersonation/impersonation3.jpeg",
+    "live_photo_path": "data/test_samples/impersonation/impersonation3.jpeg",
+    "is_genuine": true,
+    "tampering_type": "none"
   }
 ]
