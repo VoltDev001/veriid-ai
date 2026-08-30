@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "name": "Genuine Card 1 (Arjun Patel)",
+    "document_path": "data/test_samples/genuine/genuine1.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
+    "is_genuine": true,
+    "tampering_type": "none"
+  },
+  {
+    "id": 2,
+    "name": "Genuine Card 2 (Priya Sharma)",
+    "document_path": "data/test_samples/genuine/genuine2.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine2.jpeg",
+    "is_genuine": true,
+    "tampering_type": "none"
+  },
+  {
+    "id": 3,
+    "name": "Genuine Card 3 (Dev Mehta)",
+    "document_path": "data/test_samples/genuine/genuine3.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
+    "is_genuine": true,
+    "tampering_type": "none"
+  },
+  {
+    "id": 4,
+    "name": "Selfie Impersonation (Arjun ID vs Dev Face)",
+    "document_path": "data/test_samples/genuine/genuine1.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
+    "is_genuine": false,
+    "tampering_type": "impersonation"
+  },
+  {
+    "id": 5,
+    "name": "Name Tampering Test",
+    "document_path": "data/test_samples/tampered/tempered2.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
+    "is_genuine": false,
+    "tampering_type": "text_edit"
+  },
+  {
+    "id": 6,
+    "name": "ID Number Tampering Test",
+    "document_path": "data/test_samples/tampered/tempered3.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
+    "is_genuine": false,
+    "tampering_type": "id_edit"
+  },
+  {
+    "id": 7,
+    "name": "Cross-Person Impersonation",
+    "document_path": "data/test_samples/genuine/genuine1.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
+    "is_genuine": false,
+    "tampering_type": "impersonation"
+  }
+]
