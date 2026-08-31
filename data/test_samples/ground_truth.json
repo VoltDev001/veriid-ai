@@ -87,11 +87,11 @@
     "is_genuine": false,
     "tampering_type": "ocr_semantic_mismatch"
   },
-  {
+{
     "id": 12,
     "name": "Stress Test: Skewed Document Genuine",
     "document_path": "data/test_samples/stress_tests/stress_skewed.jpeg",
-    "live_photo_path": "data/test_samples/impersonation/impersonation2.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine2.jpeg",
     "is_genuine": true,
     "tampering_type": "none"
   },

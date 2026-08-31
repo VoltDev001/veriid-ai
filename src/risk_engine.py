@@ -1,68 +1,48 @@
-from typing import Dict, Any, List
+"""
+VeriID AI - Risk Orchestration Engine
+File: src/risk_engine.py
+"""
 
-def calculate_risk_score(
-    ocr_result: Dict[str, Any], 
-    tamper_result: Dict[str, Any], 
-    face_result: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Aggregates multi-vector forensic indicators into a calibrated risk score (0-100).
-    Enforces hard rejection on direct biometric failure and localized tampering.
-    """
-    total_risk = 0.0
-    flagged_reasons: List[str] = []
+def calculate_risk_score(ocr_res: dict, tamper_res: dict, face_res: dict) -> dict:
+    risk_score = 0.0
+    flagged_reasons = []
 
-    # 1. Biometric Match & Face Detection (Hard Factor: Max 60%)
-    id_face_present = face_result.get("face_detected_in_id", True)
-    live_face_present = face_result.get("face_detected_in_live", True)
-    face_matched = face_result.get("is_same_person", False)
-    similarity = face_result.get("similarity_score", 0.0)
+    # 1. OCR Integrity (Weight: 30%)
+    if not ocr_res.get("is_valid_format", True):
+        risk_score += 30.0
+        for err in ocr_res.get("error_flags", []):
+            flagged_reasons.append(f"OCR Discrepancy: {err}")
 
-    if not id_face_present or not live_face_present:
-        total_risk += 60.0
-        flagged_reasons.append("Biometric capture failed: No face detected in ID or Live photo.")
-    elif not face_matched:
-        # Immediate High Risk for face mismatch
-        total_risk += 60.0
-        flagged_reasons.append(f"Biometric mismatch detected: Face does not match ID (Confidence: {similarity:.1f}%).")
-    elif similarity < 80.0:
-        total_risk += 20.0
-        flagged_reasons.append(f"Marginal facial match confidence ({similarity:.1f}%).")
+    # 2. Forensic ELA (Weight: 40%)
+    if tamper_res.get("tampering_detected", False) or tamper_res.get("is_tampered", False):
+        risk_score += 40.0
+        flagged_reasons.append(f"Forensic Anomaly: ELA score flagged ({tamper_res.get('anomaly_score', 0.0):.1f})")
 
-    # 2. Tampering & Forensics / ELA (Factor: Max 40%)
-    tamper_score = tamper_result.get("anomaly_score", 0.0)
-    is_tampered = tamper_result.get("is_tampered", False)
-    
-    if is_tampered or tamper_score > 55.0:
-        total_risk += 40.0
-        flagged_reasons.append(f"High compression/tampering anomaly detected (ELA Score: {tamper_score:.1f}).")
-    elif tamper_score > 35.0:
-        total_risk += 20.0
-        flagged_reasons.append(f"Moderate compression variance observed (ELA Score: {tamper_score:.1f}).")
+    # 3. Biometric Match (Weight: 60%)
+    if not face_res.get("is_same_person", False):
+        risk_score += 60.0
+        flagged_reasons.append(f"Biometric Mismatch: Similarity score {face_res.get('similarity_score', 0.0):.1f}% below threshold")
 
-    # 3. OCR Format & Field Integrity (Factor: Max 30%)
-    if not ocr_result.get("is_valid_format", True):
-        total_risk += 30.0
-        flags = ocr_result.get("error_flags", ["Document format validation failed."])
-        flagged_reasons.extend(flags)
+    # 4. Anti-Spoofing / Presentation Attack (Weight: 60%)
+    if not face_res.get("is_live", True):
+        risk_score += 60.0
+        for flag in face_res.get("liveness_flags", []):
+            flagged_reasons.append(f"Spoof Attack Detected: {flag}")
 
-    # Normalize total risk
-    total_risk = min(100.0, round(total_risk, 1))
+    risk_score = min(100.0, round(risk_score, 1))
 
-    # Strict Verdict Assignment
-    if total_risk >= 60.0:
-        verdict = "REJECTED (HIGH FRAUD RISK)"
-        color = "red"
-    elif total_risk >= 30.0:
-        verdict = "MANUAL REVIEW REQUIRED (MEDIUM RISK)"
-        color = "orange"
-    else:
+    if risk_score <= 20.0:
         verdict = "VERIFIED (LOW RISK)"
-        color = "green"
+    elif risk_score <= 50.0:
+        verdict = "MANUAL REVIEW REQUIRED (MEDIUM RISK)"
+    else:
+        verdict = "REJECTED (HIGH FRAUD RISK)"
+
+    if not flagged_reasons:
+        flagged_reasons.append("All verification checks passed.")
 
     return {
-        "risk_score": total_risk,
+        "risk_score": risk_score,
         "verdict": verdict,
-        "verdict_color": color,
-        "flagged_reasons": flagged_reasons if flagged_reasons else ["All verification checks passed."]
+        "flagged_reasons": flagged_reasons
     }
