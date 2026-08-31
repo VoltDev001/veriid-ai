@@ -78,5 +78,45 @@
     "live_photo_path": "data/test_samples/impersonation/impersonation3.jpeg",
     "is_genuine": true,
     "tampering_type": "none"
+  },
+  {
+    "id": 11,
+    "name": "Stress Test: Gender Inconsistency",
+    "document_path": "data/test_samples/stress_tests/stress_gender_mismatch.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
+    "is_genuine": false,
+    "tampering_type": "ocr_semantic_mismatch"
+  },
+  {
+    "id": 12,
+    "name": "Stress Test: Skewed Document Genuine",
+    "document_path": "data/test_samples/stress_tests/stress_skewed.jpeg",
+    "live_photo_path": "data/test_samples/impersonation/impersonation2.jpeg",
+    "is_genuine": true,
+    "tampering_type": "none"
+  },
+  {
+    "id": 13,
+    "name": "Stress Test: Low-Light Genuine",
+    "document_path": "data/test_samples/stress_tests/stress_lowlight.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
+    "is_genuine": true,
+    "tampering_type": "none"
+  },
+  {
+    "id": 14,
+    "name": "Stress Test: Screen Presentation Spoof",
+    "document_path": "data/test_samples/stress_tests/stress_screen_spoof.jpeg",
+    "live_photo_path": "data/test_samples/impersonation/impersonation2.jpeg",
+    "is_genuine": false,
+    "tampering_type": "presentation_attack"
+  },
+  {
+    "id": 15,
+    "name": "Stress Test: Underage Chronology Forgery",
+    "document_path": "data/test_samples/stress_tests/stress_underage.jpeg",
+    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
+    "is_genuine": false,
+    "tampering_type": "date_inconsistency"
   }
 ]

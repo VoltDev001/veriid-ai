@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 import easyocr
 
-# Initialize EasyOCR reader (cached globally to prevent reload delay on every call)
+# Initialize EasyOCR reader (cached globally)
 reader = None
 
 def get_ocr_reader():
@@ -14,8 +14,10 @@ def get_ocr_reader():
 
 def _parse_date(date_str: str):
     """Helper to parse date string in DD/MM/YYYY format."""
+    if not date_str:
+        return None
     try:
-        return datetime.strptime(date_str, "%d/%m/%Y")
+        return datetime.strptime(date_str.strip(), "%d/%m/%Y")
     except (ValueError, TypeError):
         return None
 
@@ -44,10 +46,9 @@ def extract_and_validate(image_path: str) -> dict:
     ocr_reader = get_ocr_reader()
     results = ocr_reader.readtext(image_path, detail=0)
     raw_text = [str(token).strip() for token in results if str(token).strip()]
-
     combined_text = " ".join(raw_text)
 
-    # 2. Extract Fields using Regex Rules
+    # 2. Extract Fields
     extracted_fields = {
         "name": None,
         "dob": None,
@@ -58,18 +59,13 @@ def extract_and_validate(image_path: str) -> dict:
     }
     error_flags = []
 
-    # Regex definitions
-    date_pattern = r'\b(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[012])/(19|20)\d{2}\b'
-    id_pattern = r'\b[A-Z0-9]{3,4}-?\d{3,4}\b'
-    
-    # Locate DOB & Issue Date
-    dates_found = re.findall(date_pattern, combined_text)
-    full_dates = [f"{day}/{month}/{year}" for day, month, year in dates_found]
-    
+    # Fixed full-date regex capturing the full 4-digit year: (19\d{2}|20\d{2})
+    full_dates = re.findall(r'\b(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[012])/(?:19\d{2}|20\d{2})\b', combined_text)
+
     # Specific targeted parsing across tokens
-    for token in raw_text:
+    for i, token in enumerate(raw_text):
         token_upper = token.upper()
-        
+
         # Gender check
         if token_upper in ["MALE", "FEMALE", "OTHER"]:
             extracted_fields["gender"] = token_upper
@@ -80,31 +76,16 @@ def extract_and_validate(image_path: str) -> dict:
             if id_match:
                 extracted_fields["id_number"] = id_match.group(0)
 
-    # Assign dates if found in sequence or tagged labels
-    for i, token in enumerate(raw_text):
-        token_lower = token.lower()
-        if "dob" in token_lower or "birth" in token_lower:
-            match = re.search(r'\d{2}/\d{2}/\d{4}', token)
-            if match:
-                extracted_fields["dob"] = match.group(0)
-            elif i + 1 < len(raw_text):
-                match_next = re.search(r'\d{2}/\d{2}/\d{4}', raw_text[i+1])
-                if match_next:
-                    extracted_fields["dob"] = match_next.group(0)
+        # Name Extraction Heuristic
+        if "NAME" in token_upper and i + 1 < len(raw_text):
+            candidate_name = raw_text[i+1].replace(":", "").strip()
+            if candidate_name and not any(k in candidate_name.upper() for k in ["DOB", "GENDER", "TEST", "SYN"]):
+                extracted_fields["name"] = candidate_name
 
-        if "issue" in token_lower or "date" in token_lower and not extracted_fields["issue_date"]:
-            match = re.search(r'\d{2}/\d{2}/\d{4}', token)
-            if match:
-                extracted_fields["issue_date"] = match.group(0)
-            elif i + 1 < len(raw_text):
-                match_next = re.search(r'\d{2}/\d{2}/\d{4}', raw_text[i+1])
-                if match_next:
-                    extracted_fields["issue_date"] = match_next.group(0)
-
-    # Fallback date assignment if explicit labels weren't isolated
-    if not extracted_fields["dob"] and len(full_dates) > 0:
+    # Date assignment
+    if len(full_dates) >= 1:
         extracted_fields["dob"] = full_dates[0]
-    if not extracted_fields["issue_date"] and len(full_dates) > 1:
+    if len(full_dates) >= 2:
         extracted_fields["issue_date"] = full_dates[1]
 
     # Detect Document Type
@@ -124,11 +105,11 @@ def extract_and_validate(image_path: str) -> dict:
     if extracted_fields["gender"] not in ["MALE", "FEMALE", "OTHER"]:
         error_flags.append("Invalid or missing Gender")
 
-    dob_dt = _parse_date(extracted_fields["dob"]) if extracted_fields["dob"] else None
+    dob_dt = _parse_date(extracted_fields["dob"])
     if not dob_dt:
         error_flags.append("Invalid Date of Birth format")
 
-    issue_dt = _parse_date(extracted_fields["issue_date"]) if extracted_fields["issue_date"] else None
+    issue_dt = _parse_date(extracted_fields["issue_date"])
     if not issue_dt:
         error_flags.append("Invalid Issue Date format")
 

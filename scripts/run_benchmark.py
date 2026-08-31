@@ -41,8 +41,8 @@ def run_evaluation(ground_truth_path="data/test_samples/ground_truth.json"):
         risk_score = risk_summary["risk_score"]
         verdict = risk_summary["verdict"]
 
-        # Fraud is flagged if risk score >= 40.0% or verdict is not VERIFIED
-        predicted_fraud = risk_score >= 40.0
+        # Any risk score >= 30.0% (Manual Review or Rejected) flags the non-genuine sample
+        predicted_fraud = risk_score >= 30.0
         actual_fraud = not expected_genuine
 
         # 3. Matrix Classification
