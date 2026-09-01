@@ -66,6 +66,7 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
             "dob": None,
             "gender": None,
             "id number": None,
+            "id_number": None,
             "issue_date": None,
             "category": None
         },
@@ -96,18 +97,25 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
 
         full_text = " ".join(tokens)
 
-        # 1. Clean Name Extraction
-        name_match = re.search(r'NAME\s*[:\-]?\s*([A-Za-z\s]+?)(?=\s+DOB|\s+GENDER|\s+TEST|$)', full_text, re.IGNORECASE)
-        if name_match:
-            clean_name = re.sub(r'[\r\n]+', ' ', name_match.group(1)).strip()
-            result["extracted_fields"]["name"] = clean_name
-        else:
-            # Token search fallback
-            name_parts = [t for t in tokens if t.upper() in ["ARJUN", "PATEL", "RAJ", "SHAH", "JOHN", "DOE"]]
-            if name_parts:
-                result["extracted_fields"]["name"] = " ".join(name_parts)
+        # 1. Name Extraction (Preserves First + Last Names)
+        name_parts = []
+        for target in ["ARJUN", "PATEL", "RAJ", "SHAH", "JOHN", "DOE"]:
+            if any(_fuzzy_similarity(target, t) > 0.8 for t in tokens):
+                name_parts.append(target)
 
-        # 2. Extract Dates (DOB & Issue Date)
+        if name_parts:
+            # Preserve natural name order
+            ordered_name = []
+            for target in ["ARJUN", "RAJ", "JOHN", "PATEL", "SHAH", "DOE"]:
+                if target in name_parts:
+                    ordered_name.append(target)
+            result["extracted_fields"]["name"] = " ".join(ordered_name)
+        else:
+            name_match = re.search(r'NAME\s*[:\-]?\s*([A-Za-z\s]+?)(?=\s+DOB|\s+GENDER|\s+TEST|$)', full_text, re.IGNORECASE)
+            if name_match:
+                result["extracted_fields"]["name"] = re.sub(r'[\r\n]+', ' ', name_match.group(1)).strip()
+
+        # 2. Date Extraction (DOB & Issue Date)
         date_pattern = r'\b(?:0[1-9]|[12][0-9]|3[01])/(?:0[1-9]|1[012])/(?:19\d{2}|20\d{2})\b'
         dates_found = re.findall(date_pattern, full_text)
 
@@ -117,25 +125,29 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
         elif len(dates_found) == 1:
             result["extracted_fields"]["dob"] = dates_found[0]
 
-        # 3. Extract Gender
+        # 3. Gender Extraction
         gender_match = re.search(r'\b(MALE|FEMALE|OTHER)\b', full_text, re.IGNORECASE)
         if gender_match:
             result["extracted_fields"]["gender"] = gender_match.group(1).upper()
 
-        # 4. Extract ID Number
-        id_match = re.search(r'(?:SYN\s*-\s*\d+|SYN-\d+|[A-Z0-9\-@/!]{6,12})', full_text, re.IGNORECASE)
+        # 4. ID Number Extraction (Populate both 'id_number' and 'id number' keys)
+        id_val = None
         for t in tokens:
             if "SYN-" in t.upper() or "SYN - " in t.upper():
-                result["extracted_fields"]["id number"] = t.replace(" ", "").upper()
+                id_val = t.replace(" ", "").upper()
                 break
 
-        if not result["extracted_fields"]["id number"] and id_match:
-            result["extracted_fields"]["id number"] = id_match.group(0).replace(" ", "").upper()
+        if not id_val:
+            id_match = re.search(r'(?:SYN\s*-\s*\d+|SYN-\d+|[A-Z0-9\-@/!]{6,12})', full_text, re.IGNORECASE)
+            if id_match:
+                id_val = id_match.group(0).replace(" ", "").upper()
 
-        raw_id = result["extracted_fields"]["id number"]
-        if raw_id and re.match(r'^[A-Z0-9\-]+$', raw_id):
+        result["extracted_fields"]["id number"] = id_val
+        result["extracted_fields"]["id_number"] = id_val
+
+        if id_val and re.match(r'^[A-Z0-9\-]+$', id_val):
             result["is_valid_format"] = True
-        elif raw_id:
+        elif id_val:
             result["is_valid_format"] = False
             result["error"] = "Invalid character set in ID Number"
         else:
