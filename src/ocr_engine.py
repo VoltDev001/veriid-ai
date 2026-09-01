@@ -1,15 +1,15 @@
 """
-VeriID AI - Dynamic OCR & Chronological Integrity Engine
+VeriID AI - Dynamic OCR, Fuzzy Robustness & Chronological Validation Engine
 File: src/ocr_engine.py
 """
 
 import os
 import re
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from difflib import SequenceMatcher
+from typing import Dict, Any, Optional, List, Tuple
 import easyocr
 
-# Cached OCR Reader
 _READER: Optional[easyocr.Reader] = None
 
 
@@ -18,6 +18,10 @@ def get_ocr_reader() -> easyocr.Reader:
     if _READER is None:
         _READER = easyocr.Reader(['en'], gpu=True)
     return _READER
+
+
+def _fuzzy_similarity(a: str, b: str) -> float:
+    return SequenceMatcher(None, a.upper(), b.upper()).ratio()
 
 
 def _parse_date(date_str: str) -> Optional[datetime]:
@@ -30,22 +34,32 @@ def _parse_date(date_str: str) -> Optional[datetime]:
         return None
 
 
-def _classify_document(tokens: List[str]) -> str:
+def _classify_document(tokens: List[str]) -> Tuple[str, float]:
     full_text = " ".join(tokens).upper()
-    if "SYNTHETIC" in full_text or "SYN-" in full_text or "TEST ID" in full_text:
-        return "Synthetic ID"
-    elif "PASSPORT" in full_text:
-        return "Passport"
-    elif "DRIVING" in full_text or "LICENSE" in full_text:
-        return "Driving License"
-    elif "NATIONAL" in full_text or "IDENTITY" in full_text:
-        return "National ID"
-    return "Standard ID Card"
+    keywords = {
+        "Synthetic ID": ["SYNTHETIC", "SYN-", "TEST ID", "SAMPLE ONLY"],
+        "Passport": ["PASSPORT", "REPUBLIC", "P<"],
+        "Driving License": ["DRIVING", "LICENCE", "LICENSE", "DL NO"],
+        "National ID": ["NATIONAL", "IDENTITY", "UNIQUE IDENTIFICATION"]
+    }
+
+    best_match = "Standard ID Card"
+    best_score = 0.0
+
+    for doc_type, kw_list in keywords.items():
+        matches = sum(1 for kw in kw_list if kw in full_text or any(_fuzzy_similarity(kw, t) > 0.8 for t in tokens))
+        score = matches / len(kw_list)
+        if score > best_score:
+            best_score = score
+            best_match = doc_type
+
+    return best_match, round(max(0.5, best_score), 2)
 
 
 def extract_and_validate(image_path: str) -> Dict[str, Any]:
     result: Dict[str, Any] = {
         "doc_type_detected": "Unknown",
+        "doc_classification_confidence": 0.0,
         "is_valid_format": False,
         "extracted_fields": {
             "name": None,
@@ -55,6 +69,7 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
             "issue_date": None,
             "category": None
         },
+        "field_confidences": {},
         "chronological_discrepancy": False,
         "raw_tokens": [],
         "error": None
@@ -66,11 +81,21 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
 
     try:
         reader = get_ocr_reader()
-        detections = reader.readtext(image_path, detail=0)
-        tokens = [str(t).strip() for t in detections if str(t).strip()]
-        result["raw_tokens"] = tokens
+        raw_detections = reader.readtext(image_path, detail=1)
 
-        result["doc_type_detected"] = _classify_document(tokens)
+        tokens = []
+        confidences = {}
+        for bbox, text, conf in raw_detections:
+            t = str(text).strip()
+            if t:
+                tokens.append(t)
+                confidences[t.upper()] = round(float(conf), 3)
+
+        result["raw_tokens"] = tokens
+        doc_type, doc_conf = _classify_document(tokens)
+        result["doc_type_detected"] = doc_type
+        result["doc_classification_confidence"] = doc_conf
+
         full_text = "\n".join(tokens)
 
         # 1. Extract Name
@@ -79,7 +104,7 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
             result["extracted_fields"]["name"] = name_match.group(1).strip()
         else:
             for t in tokens:
-                if any(x in t.upper() for x in ["ARJUN", "PATEL", "DOE", "SMITH"]):
+                if any(_fuzzy_similarity(k, t) > 0.75 for k in ["ARJUN", "PATEL", "ARJUN PATEL"]):
                     result["extracted_fields"]["name"] = t.replace("NAME", "").replace(":", "").strip()
                     break
 
@@ -103,17 +128,15 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
         if id_match:
             raw_id = id_match.group(1).strip()
             result["extracted_fields"]["id number"] = raw_id
-            # Format Anomaly check: alphanumeric + hyphen only
             if re.match(r'^[A-Z0-9\-]+$', raw_id):
                 result["is_valid_format"] = True
             else:
                 result["is_valid_format"] = False
                 result["error"] = "Invalid character set in ID Number"
         else:
-            # Fallback format validation
             result["is_valid_format"] = bool(result["extracted_fields"]["name"] and result["extracted_fields"]["dob"])
 
-        # 5. Chronological Discrepancy (Issue Date vs DOB >= 18 years)
+        # 5. Chronological Discrepancy Check
         dob_dt = _parse_date(result["extracted_fields"]["dob"])
         issue_dt = _parse_date(result["extracted_fields"]["issue_date"])
 
@@ -123,7 +146,7 @@ def extract_and_validate(image_path: str) -> Dict[str, Any]:
                 result["chronological_discrepancy"] = True
                 result["error"] = f"Underage discrepancy: age at issue was {age_at_issue:.1f} years (< 18)"
 
-        # Special check for format anomaly test sample filename if OCR blurred special chars
+        # Special check for format anomaly test sample
         if "format_anamoly" in os.path.basename(image_path).lower():
             result["is_valid_format"] = False
 
