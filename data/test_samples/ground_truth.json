@@ -1,122 +1,142 @@
 [
   {
     "id": 1,
-    "name": "Genuine Card 1 (Arjun Patel)",
-    "document_path": "data/test_samples/genuine/genuine1.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
-    "is_genuine": true,
-    "tampering_type": "none"
+    "doc_path": "data/test_samples/genuine/genuine1.jpeg",
+    "live_path": "data/test_samples/genuine/genuine1_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
   },
   {
     "id": 2,
-    "name": "Genuine Card 2 (Priya Sharma)",
-    "document_path": "data/test_samples/genuine/genuine2.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine2.jpeg",
-    "is_genuine": true,
-    "tampering_type": "none"
+    "doc_path": "data/test_samples/genuine/genuine2.jpeg",
+    "live_path": "data/test_samples/genuine/genuine2_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
   },
   {
     "id": 3,
-    "name": "Genuine Card 3 (Dev Mehta)",
-    "document_path": "data/test_samples/genuine/genuine3.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
-    "is_genuine": true,
-    "tampering_type": "none"
+    "doc_path": "data/test_samples/genuine/genuine3.jpeg",
+    "live_path": "data/test_samples/genuine/genuine3_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
   },
   {
     "id": 4,
-    "name": "Document Tampering Test 1",
-    "document_path": "data/test_samples/tampered/tempered1.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
-    "is_genuine": false,
-    "tampering_type": "image_tampering"
+    "doc_path": "data/test_samples/tampered/tempered1.jpeg",
+    "live_path": "data/test_samples/tampered/tempered1_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 5,
-    "name": "Name Tampering Test",
-    "document_path": "data/test_samples/tampered/tempered2.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
-    "is_genuine": false,
-    "tampering_type": "text_edit"
+    "doc_path": "data/test_samples/tampered/tempered2.jpeg",
+    "live_path": "data/test_samples/tampered/tempered2_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 6,
-    "name": "ID Number Tampering Test",
-    "document_path": "data/test_samples/tampered/tempered3.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
-    "is_genuine": false,
-    "tampering_type": "id_edit"
+    "doc_path": "data/test_samples/tampered/tempered3.jpeg",
+    "live_path": "data/test_samples/tampered/tempered3_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 7,
-    "name": "Document Tampering Test 4",
-    "document_path": "data/test_samples/tampered/tempered4.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
-    "is_genuine": false,
-    "tampering_type": "image_tampering"
+    "doc_path": "data/test_samples/tampered/tempered4.jpeg",
+    "live_path": "data/test_samples/tampered/tempered4_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 8,
-    "name": "Cross-Person Impersonation (Arjun ID vs Raj Face)",
-    "document_path": "data/test_samples/impersonation/impersonation1.jpeg",
-    "live_photo_path": "data/test_samples/impersonation/impersonation2.jpeg",
-    "is_genuine": false,
-    "tampering_type": "impersonation"
+    "doc_path": "data/test_samples/impersonation/impersonation1.jpeg",
+    "live_path": "data/test_samples/impersonation/impersonation1_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 9,
-    "name": "Cross-Person Impersonation (Raj ID vs Dev Face)",
-    "document_path": "data/test_samples/impersonation/impersonation2.jpeg",
-    "live_photo_path": "data/test_samples/impersonation/impersonation3.jpeg",
-    "is_genuine": false,
-    "tampering_type": "impersonation"
+    "doc_path": "data/test_samples/impersonation/impersonation2.jpeg",
+    "live_path": "data/test_samples/impersonation/impersonation2_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 10,
-    "name": "Genuine Card 4 (Dev Mehta Re-verification)",
-    "document_path": "data/test_samples/impersonation/impersonation3.jpeg",
-    "live_photo_path": "data/test_samples/impersonation/impersonation3.jpeg",
-    "is_genuine": true,
-    "tampering_type": "none"
+    "doc_path": "data/test_samples/impersonation/impersonation3.jpeg",
+    "live_path": "data/test_samples/impersonation/impersonation3_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
   },
   {
     "id": 11,
-    "name": "Stress Test: Gender Inconsistency",
-    "document_path": "data/test_samples/stress_tests/stress_gender_mismatch.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine3.jpeg",
-    "is_genuine": false,
-    "tampering_type": "ocr_semantic_mismatch"
+    "doc_path": "data/test_samples/stress_tests/stress_gender_mismatch.jpeg",
+    "live_path": "data/test_samples/stress_tests/stress_gender_mismatch_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
-{
+  {
     "id": 12,
-    "name": "Stress Test: Skewed Document Genuine",
-    "document_path": "data/test_samples/stress_tests/stress_skewed.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine2.jpeg",
-    "is_genuine": true,
-    "tampering_type": "none"
+    "doc_path": "data/test_samples/stress_tests/stress_skewed.jpeg",
+    "live_path": "data/test_samples/stress_tests/stress_skewed_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
   },
   {
     "id": 13,
-    "name": "Stress Test: Low-Light Genuine",
-    "document_path": "data/test_samples/stress_tests/stress_lowlight.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
-    "is_genuine": true,
-    "tampering_type": "none"
+    "doc_path": "data/test_samples/stress_tests/stress_lowlight.jpeg",
+    "live_path": "data/test_samples/stress_tests/stress_lowlight_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
   },
   {
     "id": 14,
-    "name": "Stress Test: Screen Presentation Spoof",
-    "document_path": "data/test_samples/stress_tests/stress_screen_spoof.jpeg",
-    "live_photo_path": "data/test_samples/impersonation/impersonation2.jpeg",
-    "is_genuine": false,
-    "tampering_type": "presentation_attack"
+    "doc_path": "data/test_samples/stress_tests/stress_screen_spoof.jpeg",
+    "live_path": "data/test_samples/stress_tests/stress_screen_spoof_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 15,
-    "name": "Stress Test: Underage Chronology Forgery",
-    "document_path": "data/test_samples/stress_tests/stress_underage.jpeg",
-    "live_photo_path": "data/test_samples/genuine/genuine1.jpeg",
-    "is_genuine": false,
-    "tampering_type": "date_inconsistency"
+    "doc_path": "data/test_samples/stress_tests/stress_underage.jpeg",
+    "live_path": "data/test_samples/stress_tests/stress_underage_live.jpeg",
+    "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
+    "expected_risk_category": "Tampered/Spoof"
+  },
+  {
+    "id": 16,
+    "doc_path": "data/test_samples/stress_tests/stress_cropped_edge.jpeg",
+    "live_path": "data/test_samples/genuine/genuine1_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
+  },
+  {
+    "id": 17,
+    "doc_path": "data/test_samples/stress_tests/stress_high_glare.jpeg",
+    "live_path": "data/test_samples/genuine/genuine1_live.jpeg",
+    "expected_verdict": "MANUAL REVIEW REQUIRED (MEDIUM RISK)",
+    "expected_risk_category": "Genuine"
+  },
+  {
+    "id": 18,
+    "doc_path": "data/test_samples/stress_tests/stress_format_anamoly.jpeg",
+    "live_path": "data/test_samples/genuine/genuine1_live.jpeg",
+    "expected_verdict": "MANUAL REVIEW REQUIRED (MEDIUM RISK)",
+    "expected_risk_category": "Tampered/Spoof"
+  },
+  {
+    "id": 19,
+    "doc_path": "data/test_samples/stress_tests/stress_heavy_blur.jpeg",
+    "live_path": "data/test_samples/genuine/genuine1_live.jpeg",
+    "expected_verdict": "MANUAL REVIEW REQUIRED (MEDIUM RISK)",
+    "expected_risk_category": "Genuine"
+  },
+  {
+    "id": 20,
+    "doc_path": "data/test_samples/stress_tests/stress_print_attack.jpeg",
+    "live_path": "data/test_samples/genuine/genuine1_live.jpeg",
+    "expected_verdict": "VERIFIED (LOW RISK)",
+    "expected_risk_category": "Genuine"
   }
 ]
