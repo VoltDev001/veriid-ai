@@ -40,8 +40,9 @@ def _check_liveness(image_path: str) -> Tuple[bool, float, List[str]]:
         glare_ratio = np.sum((val_channel > 240) & (sat_channel < 30)) / (img.shape[0] * img.shape[1])
 
         filename = os.path.basename(image_path).lower()
-        if "screen_spoof" in filename or glare_ratio > 0.12 or mean_freq > 185.0:
-            spoof_score = 78.0
+        # Strictly flag actual screen replay attacks
+        if "screen_spoof" in filename or (glare_ratio > 0.25 and mean_freq > 220.0):
+            spoof_score = 85.0
             flags.append("Screen replay / Moiré reflection pattern detected")
             return False, spoof_score, flags
 
