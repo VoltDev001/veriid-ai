@@ -38,13 +38,15 @@ st.markdown("""
         border: 1px solid #2e3846;
         margin-bottom: 10px;
     }
-    .badge-pass { color: #00e676; font-weight: bold; }
-    .badge-fail { color: #ff5252; font-weight: bold; }
+    .badge-primary { background-color: #00e676; color: #000; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .badge-fallback { background-color: #ff9800; color: #000; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .badge-live-pass { background-color: #00e676; color: #000; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .badge-live-fail { background-color: #ff5252; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🛡️ VeriID AI — Multi-Vector Verification Dashboard")
-st.caption("Automated Multi-Modal Fraud Detection: OCR Cross-Validation | Forensic ELA | Biometrics & Liveness")
+st.caption("Automated Multi-Modal Fraud Detection: OCR Cross-Validation | Forensic ELA | Biometrics & Liveness | Latency Telemetry")
 
 # =====================================================================
 # Helper Utilities
@@ -61,7 +63,6 @@ def draw_bounding_boxes(image: Image.Image, text_fields: dict) -> Image.Image:
     draw = ImageDraw.Draw(img_draw)
     w, h = img_draw.size
 
-    # Simulated visual anchors for key verification sectors
     draw.rectangle([int(w * 0.05), int(h * 0.25), int(w * 0.35), int(h * 0.85)], outline="#00e676", width=3) # Face Zone
     draw.rectangle([int(w * 0.40), int(h * 0.25), int(w * 0.95), int(h * 0.85)], outline="#2979ff", width=2) # Data Zone
     return img_draw
@@ -106,10 +107,14 @@ if doc_file and live_file and run_verification:
         st.error(f"### Verdict: {verdict} | Risk Score: {risk_score}%")
 
     # -----------------------------------------------------------------
-    # Section 1: Telemetry & Multi-Vector Cards
+    # Section 1: Telemetry & Multi-Vector Metric Banner (5 Columns)
     # -----------------------------------------------------------------
     st.subheader("📊 Engine Telemetry & Biometric Metrics")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    telemetry = face_result.get("telemetry", {})
+    total_latency = telemetry.get("total_ms", 0.0)
+    detector_used = face_result.get("detector_used", "Primary (OpenCV)")
 
     with col1:
         st.metric(
@@ -118,6 +123,11 @@ if doc_file and live_file and run_verification:
             delta="Matched" if face_result.get("is_same_person") else "-Mismatch",
             delta_color="normal" if face_result.get("is_same_person") else "inverse"
         )
+        if "Fallback" in detector_used:
+            st.markdown(f'<span class="badge-fallback">⚡ {detector_used}</span>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<span class="badge-primary">✅ {detector_used}</span>', unsafe_allow_html=True)
+
     with col2:
         is_live = face_result.get("is_live", True)
         st.metric(
@@ -126,7 +136,21 @@ if doc_file and live_file and run_verification:
             delta=f"Spoof Risk: {face_result.get('spoof_confidence', 0.0):.1f}%",
             delta_color="normal" if is_live else "inverse"
         )
+        if is_live:
+            st.markdown('<span class="badge-live-pass">✅ Genuine Capture</span>', unsafe_allow_html=True)
+        else:
+            st.markdown('<span class="badge-live-fail">⚠️ Presentation Attack</span>', unsafe_allow_html=True)
+
     with col3:
+        st.metric(
+            label="Biometric Latency",
+            value=f"{total_latency:.1f} ms",
+            delta=f"PAD: {telemetry.get('liveness_ms', 0.0):.1f}ms | Match: {telemetry.get('match_ms', 0.0):.1f}ms",
+            delta_color="off"
+        )
+        st.markdown('<span style="color: #90caf9; font-size: 11px; font-weight: bold;">⚡ Hardware Execution Time</span>', unsafe_allow_html=True)
+
+    with col4:
         ela_score = ela_result.get("anomaly_score", 0.0)
         st.metric(
             label="Forensic ELA Score",
@@ -134,7 +158,8 @@ if doc_file and live_file and run_verification:
             delta="Clean" if not ela_result.get("tampering_detected") else "-Tampered",
             delta_color="normal" if not ela_result.get("tampering_detected") else "inverse"
         )
-    with col4:
+
+    with col5:
         st.metric(
             label="OCR Syntax Integrity",
             value="VALID" if ocr_result.get("is_valid_format") else "INVALID",
@@ -163,7 +188,7 @@ if doc_file and live_file and run_verification:
 
     with img_col3:
         st.markdown("**Live Ingestion Biometrics**")
-        st.image(live_path, use_container_width=True, caption="Live Capture Frame")
+        st.image(live_path, use_container_width=True, caption=f"Live Capture Frame (PAD Status: {'Genuine' if is_live else 'Spoof Flagged'})")
 
     # -----------------------------------------------------------------
     # Section 3: Extracted Data & Compliance Audit Export
@@ -197,7 +222,9 @@ if doc_file and live_file and run_verification:
                     "same_person_authenticated": face_result.get("is_same_person", False),
                     "anti_spoof_liveness_verified": face_result.get("is_live", True),
                     "spoof_confidence_score": face_result.get("spoof_confidence", 0.0),
-                    "liveness_flags": face_result.get("liveness_flags", [])
+                    "liveness_flags": face_result.get("liveness_flags", []),
+                    "detector_mode": detector_used,
+                    "execution_latency": telemetry
                 },
                 "forensics_ela": {
                     "anomaly_score": ela_result.get("anomaly_score", 0.0),
