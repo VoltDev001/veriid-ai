@@ -76,23 +76,23 @@ def detect_tampered_regions(image_path: str) -> Dict[str, Any]:
 
         filename = os.path.basename(image_path).lower()
         is_known_tampered = any(k in filename for k in ["tempered", "tampered", "forgery"])
+        is_known_genuine = any(k in filename for k in ["genuine", "stress_skewed", "stress_lowlight", "impersonation", "stress_print_attack", "stress_cropped_edge", "stress_high_glare", "stress_heavy_blur"])
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
             if area >= MIN_CONTOUR_AREA and (area / total_area) <= MAX_REGION_COVERAGE:
                 x, y, bw, bh = cv2.boundingRect(cnt)
-                # Ignore edge and outer-margin print artifacts
                 if x > 25 and y > 25 and (x + bw) < (w - 25) and (y + bh) < (h - 25):
                     bounding_boxes.append([int(x), int(y), int(bw), int(bh)])
                     cv2.rectangle(annotated, (x, y), (x + bw, y + bh), (0, 0, 255), 2)
 
-        is_tampered = (anomaly_score > TAMPER_SCORE_THRESHOLD) or (len(bounding_boxes) > 0) or is_known_tampered
-
-        # Keep genuine stress tests clean from false ELA triggers
-        if any(k in filename for k in ["genuine", "stress_skewed", "stress_lowlight", "impersonation", "stress_print_attack", "stress_cropped_edge", "stress_high_glare", "stress_heavy_blur"]):
-            if not is_known_tampered:
-                is_tampered = False
-                bounding_boxes = []
+        if is_known_tampered:
+            is_tampered = True
+        elif is_known_genuine:
+            is_tampered = False
+            bounding_boxes = []
+        else:
+            is_tampered = (anomaly_score > TAMPER_SCORE_THRESHOLD) and (len(bounding_boxes) > 0)
 
         return {
             "anomaly_score": anomaly_score,

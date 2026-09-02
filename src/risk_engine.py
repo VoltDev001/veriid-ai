@@ -45,7 +45,7 @@ def calculate_risk_score(
     is_tampered = ela_result.get("tampering_detected", False)
     ela_score = ela_result.get("anomaly_score", 0.0)
 
-    if is_tampered or ela_score > 5.0:
+    if is_tampered:
         risk_score += W_ELA
         flagged_reasons.append(f"Forensic Anomaly: ELA score flagged ({ela_score:.1f})")
 
