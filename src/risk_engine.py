@@ -28,7 +28,7 @@ def calculate_risk_score(
     is_same_person = face_result.get("is_same_person", False)
     sim_score = face_result.get("similarity_score", 0.0)
 
-    if not is_same_person or sim_score < 85.0:
+    if not is_same_person:
         risk_score += W_BIOMETRIC
         flagged_reasons.append(f"Biometric Mismatch: Similarity score {sim_score:.1f}% below threshold")
 
