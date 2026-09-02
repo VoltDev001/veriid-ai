@@ -3,6 +3,7 @@ VeriID AI - Multi-Modal Identity Verification & Forensic Risk Dashboard
 File: app.py
 """
 
+from src.audit_engine import generate_compliance_audit_package
 import os
 import json
 import tempfile
@@ -198,41 +199,22 @@ if run_btn:
 
         with r2:
             st.markdown("**Formal Compliance Audit Package:**")
-            audit_package = {
-                "veriid_audit_id": f"AUD-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
-                "timestamp_utc": datetime.utcnow().isoformat(),
-                "final_verdict": verdict,
-                "overall_fraud_risk_score": f"{score_val:.1f}%",
-                "pipeline_telemetry": {
-                    "biometrics": {
-                        "facial_similarity": f"{sim_score:.2f}%",
-                        "same_person_authenticated": face_res.get("is_same_person"),
-                        "anti_spoof_liveness_verified": face_res.get("is_live"),
-                        "spoof_confidence_score": face_res.get("spoof_confidence"),
-                        "latency_ms": face_res.get("latency_ms", 0.0)
-                    },
-                    "forensics_ela": {
-                        "anomaly_score": anomaly,
-                        "tampering_detected": is_tamp,
-                        "flagged_regions_count": len(ela_detail.get("bounding_boxes", []))
-                    },
-                    "ocr_integrity": {
-                        "format_valid": is_valid,
-                        "document_type": ocr_res.get("doc_type_detected"),
-                        "extracted_data": ocr_res.get("extracted_fields"),
-                        "chronological_discrepancy": ocr_res.get("chronological_discrepancy")
-                    }
-                },
-                "flagged_risk_reasons": risk_res.get("flagged_reasons", [])
-            }
+            audit_package = generate_compliance_audit_package(
+                ocr_result=ocr_res,
+                ela_result=ela_res,
+                face_result=face_res,
+                risk_result=risk_res
+            )
 
             audit_json_str = json.dumps(audit_package, indent=2)
             st.download_button(
                 label="📥 Download Formal Compliance Audit (JSON)",
                 data=audit_json_str,
-                file_name=f"VeriID_Audit_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json",
+                file_name=f"{audit_package['veriid_audit_id']}.json",
                 mime="application/json",
                 use_container_width=True
             )
+            with st.expander("👁️ View Live Audit Payload", expanded=False):
+                st.json(audit_package)
 else:
     st.info("👈 Select a Quick Demo Preset or upload images in the sidebar, then click 'Run Multi-Vector Verification'.")
