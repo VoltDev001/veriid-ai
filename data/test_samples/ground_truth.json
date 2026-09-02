@@ -51,14 +51,14 @@
   {
     "id": 8,
     "doc_path": "data/test_samples/impersonation/impersonation1.jpeg",
-    "live_path": "data/test_samples/impersonation/impersonation1_live.jpeg",
+    "live_path": "data/test_samples/impersonation/impersonation2.jpeg",
     "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
     "expected_risk_category": "Tampered/Spoof"
   },
   {
     "id": 9,
     "doc_path": "data/test_samples/impersonation/impersonation2.jpeg",
-    "live_path": "data/test_samples/impersonation/impersonation2_live.jpeg",
+    "live_path": "data/test_samples/impersonation/impersonation3.jpeg",
     "expected_verdict": "REJECTED (HIGH FRAUD RISK)",
     "expected_risk_category": "Tampered/Spoof"
   },
