@@ -1,28 +1,24 @@
 """
-VeriID AI - Identity Verification & Multi-Vector Fraud Detection Dashboard
+VeriID AI - Multi-Modal Identity Verification & Forensic Risk Dashboard
 File: app.py
 """
 
-import streamlit as st
-import numpy as np
-from PIL import Image, ImageDraw
+import os
 import json
 import tempfile
-import os
-from datetime import datetime
+from datetime import datetime, timezone
+import streamlit as st
+import cv2
+from PIL import Image
 
-# Import Internal Modular Engines
 from src.ocr_engine import extract_and_validate
-from src.ela_engine import analyze_image_tampering
+from src.ela_engine import analyze_image_tampering, detect_tampered_regions
 from src.face_engine import match_faces
 from src.risk_engine import calculate_risk_score
+from src.audit_engine import generate_compliance_audit_package
 
-# =====================================================================
-# Page Configuration
-# =====================================================================
 st.set_page_config(
-    page_title="VeriID AI - Multi-Vector Fraud Detection",
-    page_icon="🛡️",
+    page_title="VeriID AI - Border Screening Engine",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -30,231 +26,211 @@ st.set_page_config(
 # Custom Styling
 st.markdown("""
 <style>
-    .reportview-container { background: #0e1117; }
+    .reportview-container { background: #0E1117; }
     .metric-card {
-        background-color: #1e2530;
-        padding: 15px;
+        background-color: #1E293B;
         border-radius: 8px;
-        border: 1px solid #2e3846;
-        margin-bottom: 10px;
+        padding: 15px;
+        border: 1px solid #334155;
+        text-align: center;
     }
-    .badge-primary { background-color: #00e676; color: #000; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-    .badge-fallback { background-color: #ff9800; color: #000; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-    .badge-live-pass { background-color: #00e676; color: #000; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-    .badge-live-fail { background-color: #ff5252; color: #fff; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .verdict-banner-low {
+        background-color: #064E3B;
+        color: #6EE7B7;
+        padding: 14px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1.15rem;
+        border: 1px solid #059669;
+        margin-bottom: 15px;
+    }
+    .verdict-banner-med {
+        background-color: #78350F;
+        color: #FCD34D;
+        padding: 14px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1.15rem;
+        border: 1px solid #D97706;
+        margin-bottom: 15px;
+    }
+    .verdict-banner-high {
+        background-color: #7F1D1D;
+        color: #FCA5A5;
+        padding: 14px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 1.15rem;
+        border: 1px solid #DC2626;
+        margin-bottom: 15px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🛡️ VeriID AI — Multi-Vector Verification Dashboard")
-st.caption("Automated Multi-Modal Fraud Detection: OCR Cross-Validation | Forensic ELA | Biometrics & Liveness | Latency Telemetry")
 
-# =====================================================================
-# Helper Utilities
-# =====================================================================
-def save_uploaded_file(uploaded_file) -> str:
+def save_temp_file(uploaded_file) -> str:
     suffix = os.path.splitext(uploaded_file.name)[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(uploaded_file.getbuffer())
         return tmp.name
 
-def draw_bounding_boxes(image: Image.Image, text_fields: dict) -> Image.Image:
-    """Draws visual feedback overlays for detected ID zones."""
-    img_draw = image.copy().convert("RGB")
-    draw = ImageDraw.Draw(img_draw)
-    w, h = img_draw.size
 
-    draw.rectangle([int(w * 0.05), int(h * 0.25), int(w * 0.35), int(h * 0.85)], outline="#00e676", width=3) # Face Zone
-    draw.rectangle([int(w * 0.40), int(h * 0.25), int(w * 0.95), int(h * 0.85)], outline="#2979ff", width=2) # Data Zone
-    return img_draw
+st.sidebar.title("🛂 VeriID Screening Control")
+st.sidebar.markdown("**Multi-Modal Border Checkpoint AI Engine**")
 
-# =====================================================================
-# Sidebar: Upload Controls
-# =====================================================================
-st.sidebar.header("📁 Document & Capture Ingestion")
-doc_file = st.sidebar.file_uploader("Upload ID Document (JPEG/PNG)", type=["jpg", "jpeg", "png"])
-live_file = st.sidebar.file_uploader("Upload Live Selfie / Capture", type=["jpg", "jpeg", "png"])
+demo_samples = {
+    "Select Sample...": (None, None),
+    "1. Genuine / Valid ID (Low Risk)": (
+        "data/test_samples/genuine/genuine1.jpeg",
+        "data/test_samples/genuine/genuine1.jpeg"
+    ),
+    "2. Tampered / ELA Text Splicing (Medium Risk)": (
+        "data/test_samples/tampered/tempered1.jpeg",
+        "data/test_samples/tampered/tempered1.jpeg"
+    ),
+    "3. Impersonation Fraud (High Risk)": (
+        "data/test_samples/impersonation/impersonation1.jpeg",
+        "data/test_samples/impersonation/impersonation1.jpeg"
+    ),
+    "4. Screen Replay Spoof (High Risk)": (
+        "data/test_samples/stress_tests/stress_screen_spoof.jpeg",
+        "data/test_samples/stress_tests/stress_screen_spoof.jpeg"
+    ),
+    "5. Underage Chronological Fraud (Medium Risk)": (
+        "data/test_samples/stress_tests/stress_underage.jpeg",
+        "data/test_samples/stress_tests/stress_underage.jpeg"
+    )
+}
 
-run_verification = st.sidebar.button("🚀 Run Multi-Vector Verification", type="primary", use_container_width=True)
+selected_demo = st.sidebar.selectbox("⚡ Quick Demo Presets", list(demo_samples.keys()))
 
-# =====================================================================
-# Main Execution Pipeline
-# =====================================================================
-if doc_file and live_file and run_verification:
-    doc_path = save_uploaded_file(doc_file)
-    live_path = save_uploaded_file(live_file)
+doc_path, live_path = None, None
 
-    with st.spinner("Processing Multi-Modal Fraud Pipeline (OCR -> ELA -> FaceNet512 -> Anti-Spoofing)..."):
-        # 1. Run Engines
-        ocr_result = extract_and_validate(doc_path)
-        ela_result = analyze_image_tampering(doc_path)
-        face_result = match_faces(doc_path, live_path)
+if selected_demo != "Select Sample...":
+    p_doc, p_live = demo_samples[selected_demo]
+    if os.path.exists(p_doc) and os.path.exists(p_live):
+        doc_path, live_path = p_doc, p_live
 
-        # 2. Risk Orchestration
-        risk_summary = calculate_risk_score(ocr_result, ela_result, face_result)
+st.sidebar.markdown("---")
+uploaded_doc = st.sidebar.file_uploader("Upload ID Document (JPEG/PNG)", type=["jpeg", "jpg", "png"])
+uploaded_live = st.sidebar.file_uploader("Upload Live Selfie / Capture", type=["jpeg", "jpg", "png"])
 
-    # -----------------------------------------------------------------
-    # Top Level Executive Verdict Banner
-    # -----------------------------------------------------------------
-    risk_score = risk_summary["risk_score"]
-    verdict = risk_summary["verdict"]
+if uploaded_doc is not None:
+    doc_path = save_temp_file(uploaded_doc)
+if uploaded_live is not None:
+    live_path = save_temp_file(uploaded_live)
 
-    st.markdown("---")
-    if "VERIFIED" in verdict:
-        st.success(f"### Verdict: {verdict} | Risk Score: {risk_score}%")
-    elif "MANUAL" in verdict:
-        st.warning(f"### Verdict: {verdict} | Risk Score: {risk_score}%")
+run_btn = st.sidebar.button("🚀 Run Multi-Vector Verification", use_container_width=True)
+
+st.title("🛡️ VeriID AI — Screening & Identity Verification Dashboard")
+
+if run_btn:
+    if not doc_path or not live_path:
+        st.warning("Please upload both Document and Live Capture files or select a Quick Demo Preset.")
     else:
-        st.error(f"### Verdict: {verdict} | Risk Score: {risk_score}%")
+        with st.spinner("Executing Multi-Modal Forensic Pipeline..."):
+            ocr_res = extract_and_validate(doc_path)
+            ela_res = analyze_image_tampering(doc_path)
+            ela_detail = detect_tampered_regions(doc_path)
+            face_res = match_faces(doc_path, live_path)
+            risk_res = calculate_risk_score(ocr_res, ela_res, face_res)
 
-    # -----------------------------------------------------------------
-    # Section 1: Telemetry & Multi-Vector Metric Banner (5 Columns)
-    # -----------------------------------------------------------------
-    st.subheader("📊 Engine Telemetry & Biometric Metrics")
-    col1, col2, col3, col4, col5 = st.columns(5)
+        score_val = risk_res.get("risk_score", 0.0)
+        verdict = risk_res.get("verdict", "UNKNOWN")
 
-    telemetry = face_result.get("telemetry", {})
-    total_latency = telemetry.get("total_ms", 0.0)
-    detector_used = face_result.get("detector_used", "Primary (OpenCV)")
-
-    with col1:
-        st.metric(
-            label="Biometric Similarity",
-            value=f"{face_result.get('similarity_score', 0.0):.1f}%",
-            delta="Matched" if face_result.get("is_same_person") else "-Mismatch",
-            delta_color="normal" if face_result.get("is_same_person") else "inverse"
-        )
-        if "Fallback" in detector_used:
-            st.markdown(f'<span class="badge-fallback">⚡ {detector_used}</span>', unsafe_allow_html=True)
+        if score_val <= 20.0:
+            st.markdown(f'<div class="verdict-banner-low">Verdict: {verdict} | Risk Score: {score_val:.1f}%</div>', unsafe_allow_html=True)
+        elif score_val <= 50.0:
+            st.markdown(f'<div class="verdict-banner-med">Verdict: {verdict} | Risk Score: {score_val:.1f}%</div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<span class="badge-primary">✅ {detector_used}</span>', unsafe_allow_html=True)
+            st.markdown(f'<div class="verdict-banner-high">Verdict: {verdict} | Risk Score: {score_val:.1f}%</div>', unsafe_allow_html=True)
 
-    with col2:
-        is_live = face_result.get("is_live", True)
-        st.metric(
-            label="Liveness / Anti-Spoof",
-            value="PASSED" if is_live else "FLAGGED",
-            delta=f"Spoof Risk: {face_result.get('spoof_confidence', 0.0):.1f}%",
-            delta_color="normal" if is_live else "inverse"
-        )
-        if is_live:
-            st.markdown('<span class="badge-live-pass">✅ Genuine Capture</span>', unsafe_allow_html=True)
-        else:
-            st.markdown('<span class="badge-live-fail">⚠️ Presentation Attack</span>', unsafe_allow_html=True)
+        # Telemetry Metrics Grid (with Member 3 Latency Integration)
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            sim_score = face_res.get("similarity_score", 0.0)
+            latency = face_res.get("latency_ms", 0.0)
+            st.metric(
+                "Biometric Match",
+                f"{sim_score:.1f}%",
+                f"{'Matched' if face_res.get('is_same_person') else 'Mismatch'} ({latency:.0f}ms)"
+            )
+        with m2:
+            is_live = face_res.get("is_live", True)
+            st.metric(
+                "Liveness / PAD",
+                "PASSED" if is_live else "SPOOF DETECTED",
+                f"Spoof Risk: {face_res.get('spoof_confidence', 0.0):.1f}%"
+            )
+        with m3:
+            anomaly = ela_res.get("anomaly_score", 0.0)
+            is_tamp = ela_res.get("tampering_detected", False)
+            st.metric(
+                "Forensic ELA Score",
+                f"{anomaly:.2f}",
+                "Tampered" if is_tamp else "Clean Integrity"
+            )
+        with m4:
+            is_valid = ocr_res.get("is_valid_format", False)
+            st.metric(
+                "OCR Syntax & Schema",
+                "VALID" if is_valid else "INVALID",
+                f"{len(ocr_res.get('raw_tokens', []))} Tokens"
+            )
 
-    with col3:
-        st.metric(
-            label="Biometric Latency",
-            value=f"{total_latency:.1f} ms",
-            delta=f"PAD: {telemetry.get('liveness_ms', 0.0):.1f}ms | Match: {telemetry.get('match_ms', 0.0):.1f}ms",
-            delta_color="off"
-        )
-        st.markdown('<span style="color: #90caf9; font-size: 11px; font-weight: bold;">⚡ Hardware Execution Time</span>', unsafe_allow_html=True)
+        st.markdown("### 🔍 Visual Evidence & Overlay Inspection")
+        c1, c2, c3 = st.columns(3)
 
-    with col4:
-        ela_score = ela_result.get("anomaly_score", 0.0)
-        st.metric(
-            label="Forensic ELA Score",
-            value=f"{ela_score:.2f}",
-            delta="Clean" if not ela_result.get("tampering_detected") else "-Tampered",
-            delta_color="normal" if not ela_result.get("tampering_detected") else "inverse"
-        )
+        with c1:
+            st.markdown("**Document Localization & Splicing Bounding-Boxes**")
+            if ela_detail.get("annotated_image") is not None:
+                st.image(ela_detail["annotated_image"], use_container_width=True)
+            else:
+                st.image(doc_path, use_container_width=True)
 
-    with col5:
-        st.metric(
-            label="OCR Syntax Integrity",
-            value="VALID" if ocr_result.get("is_valid_format") else "INVALID",
-            delta=f"{len(ocr_result.get('error_flags', []))} Errors",
-            delta_color="normal" if ocr_result.get("is_valid_format") else "inverse"
-        )
+        with c2:
+            st.markdown(f"**Error Level Analysis Heatmap (Variance: {anomaly:.2f})**")
+            if ela_res.get("ela_image") is not None:
+                st.image(ela_res["ela_image"], use_container_width=True)
+            else:
+                st.info("No ELA variance generated.")
 
-    # -----------------------------------------------------------------
-    # Section 2: Visual Evidence & Inspection Canvas
-    # -----------------------------------------------------------------
-    st.subheader("🔍 Visual Evidence & Overlay Inspection")
-    img_col1, img_col2, img_col3 = st.columns(3)
+        with c3:
+            st.markdown("**Live Ingestion Biometrics**")
+            st.image(live_path, use_container_width=True)
 
-    with img_col1:
-        st.markdown("**Document Segmentation & Bounding-Boxes**")
-        pil_doc = Image.open(doc_path)
-        annotated_doc = draw_bounding_boxes(pil_doc, ocr_result.get("extracted_fields", {}))
-        st.image(annotated_doc, use_container_width=True, caption="Visual Field Anchors (Green=Face, Blue=Data)")
+        st.markdown("### 📑 Extracted Records & Compliance Audit Engine")
+        r1, r2 = st.columns([1.2, 1])
 
-    with img_col2:
-        st.markdown("**Error Level Analysis (ELA Map)**")
-        if "ela_image" in ela_result and ela_result["ela_image"] is not None:
-            st.image(ela_result["ela_image"], use_container_width=True, caption=f"Compression Variance Map ({ela_score:.2f})")
-        else:
-            st.info("No ELA map rendered.")
+        with r1:
+            st.markdown("**Parsed OCR Document Fields:**")
+            st.json({
+                "Document Type": ocr_res.get("doc_type_detected"),
+                "Full Name": ocr_res.get("extracted_fields", {}).get("name"),
+                "Date of Birth": ocr_res.get("extracted_fields", {}).get("dob"),
+                "Gender": ocr_res.get("extracted_fields", {}).get("gender"),
+                "ID Number": ocr_res.get("extracted_fields", {}).get("id_number") or ocr_res.get("extracted_fields", {}).get("id number"),
+                "Issue Date": ocr_res.get("extracted_fields", {}).get("issue_date")
+            })
 
-    with img_col3:
-        st.markdown("**Live Ingestion Biometrics**")
-        st.image(live_path, use_container_width=True, caption=f"Live Capture Frame (PAD Status: {'Genuine' if is_live else 'Spoof Flagged'})")
+        with r2:
+            st.markdown("**Formal Compliance Audit Package:**")
+            audit_package = generate_compliance_audit_package(
+                ocr_result=ocr_res,
+                ela_result=ela_res,
+                face_result=face_res,
+                risk_result=risk_res
+            )
 
-    # -----------------------------------------------------------------
-    # Section 3: Extracted Data & Compliance Audit Export
-    # -----------------------------------------------------------------
-    st.subheader("📑 Extracted Records & Compliance Audit Engine")
-    
-    rec_col, audit_col = st.columns([1, 1])
-
-    with rec_col:
-        st.markdown("**Parsed OCR Document Fields:**")
-        fields = ocr_result.get("extracted_fields", {})
-        st.json({
-            "Document Type": ocr_result.get("doc_type_detected"),
-            "Full Name": fields.get("name") or "Extracted via Card Matrix",
-            "Date of Birth": fields.get("dob"),
-            "Gender": fields.get("gender"),
-            "ID Number": fields.get("id_number"),
-            "Issue Date": fields.get("issue_date")
-        })
-
-    with audit_col:
-        st.markdown("**Formal Compliance Audit Package:**")
-        audit_payload = {
-            "veriid_audit_id": f"AUD-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
-            "timestamp_utc": datetime.utcnow().isoformat(),
-            "final_verdict": verdict,
-            "overall_fraud_risk_score": f"{risk_score}%",
-            "pipeline_telemetry": {
-                "biometrics": {
-                    "facial_similarity": f"{face_result.get('similarity_score', 0.0):.2f}%",
-                    "same_person_authenticated": face_result.get("is_same_person", False),
-                    "anti_spoof_liveness_verified": face_result.get("is_live", True),
-                    "spoof_confidence_score": face_result.get("spoof_confidence", 0.0),
-                    "liveness_flags": face_result.get("liveness_flags", []),
-                    "detector_mode": detector_used,
-                    "execution_latency": telemetry
-                },
-                "forensics_ela": {
-                    "anomaly_score": ela_result.get("anomaly_score", 0.0),
-                    "tampering_detected": ela_result.get("tampering_detected", False)
-                },
-                "ocr_integrity": {
-                    "format_valid": ocr_result.get("is_valid_format", False),
-                    "document_type": ocr_result.get("doc_type_detected", "Unknown"),
-                    "extracted_data": ocr_result.get("extracted_fields", {}),
-                    "error_flags": ocr_result.get("error_flags", [])
-                }
-            },
-            "flagged_risk_reasons": risk_summary.get("flagged_reasons", [])
-        }
-
-        audit_json = json.dumps(audit_payload, indent=2)
-        st.download_button(
-            label="📥 Download Formal Compliance Audit (JSON)",
-            data=audit_json,
-            file_name=f"VeriID_Audit_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json",
-            mime="application/json",
-            use_container_width=True
-        )
-
-    # Clean up temp files
-    try:
-        os.remove(doc_path)
-        os.remove(live_path)
-    except Exception:
-        pass
-
+            audit_json_str = json.dumps(audit_package, indent=2)
+            st.download_button(
+                label="📥 Download Formal Compliance Audit (JSON)",
+                data=audit_json_str,
+                file_name=f"{audit_package['veriid_audit_id']}.json",
+                mime="application/json",
+                use_container_width=True
+            )
+            with st.expander("👁️ View Live Audit Payload", expanded=False):
+                st.json(audit_package)
 else:
-    st.info("👈 Please upload an ID Document and a Live Capture from the sidebar and click **Run Multi-Vector Verification**.")
+    st.info("👈 Select a Quick Demo Preset or upload images in the sidebar, then click 'Run Multi-Vector Verification'.")
