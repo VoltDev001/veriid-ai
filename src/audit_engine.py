@@ -51,7 +51,7 @@ def generate_compliance_audit_package(
             "weight_pct": 40.0,
             "anomaly_score": ela_anomaly,
             "tampering_detected": bool(ela_result.get("tampering_detected", False)),
-            "risk_incurred": 40.0 if (ela_result.get("tampering_detected") or ela_anomaly > 5.0) else 0.0
+            "risk_incurred": 40.0 if bool(ela_result.get("tampering_detected", False)) else 0.0
         },
         "ocr_syntax_chronology": {
             "weight_pct": 30.0,
